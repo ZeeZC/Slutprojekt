@@ -1,4 +1,28 @@
+import csv
+import os
+
 #TELEFONBOK (Beta-version för tillfället...)
+
+FILNAMN = "telefonbok.csv"  #Namn på filen där kontakter sparas
+
+#Funktion för att ladda kontakter från CSV-fil
+def ladda_kontakter():
+    my_dict = {}
+    if os.path.exists(FILNAMN):
+        with open(FILNAMN, 'r', encoding='utf-8') as fil:
+            lasare = csv.reader(fil)
+            for rad in lasare:
+                if len(rad) == 2:
+                    namn, nummer = rad
+                    my_dict[namn] = nummer
+    return my_dict
+
+#Funktion för att spara kontakter till CSV-fil
+def spara_kontakter(my_dict):
+    with open(FILNAMN, 'w', encoding='utf-8', newline='') as fil:
+        skrivare = csv.writer(fil)
+        for namn, nummer in my_dict.items():
+            skrivare.writerow([namn, nummer])
 
 #Funktion till en Startmeny för att välja olika alternativ inom telefonboken 
 def menu():
@@ -18,6 +42,7 @@ def add_contact(my_dict):
         print("Kontakten finns redan.") #Om namnet finns redan så läggs den inte till.
     else:
         my_dict[namn] = nummer
+        spara_kontakter(my_dict)  #Sparar direkt till CSV-fil
         print(f"Kontakt {namn} har lagts till!") #Om namn inte finns läggs kontakten till med nummer
 
 #Funktion för att söka efter kontakter
@@ -34,6 +59,7 @@ def uppdate_number(my_dict):
     if namn in my_dict: #Om namnet finns i telefonboken kan du uppdatera nummret
         nytt_nummer = input("Ange nytt telefonnummer: ")
         my_dict[namn] = nytt_nummer
+        spara_kontakter(my_dict)  #Sparar ändringen till CSV-fil
         print(f"Telefonnumret för {namn} har uppdaterats!")
     else:
         print("Kontakten finns inte.")
@@ -43,6 +69,7 @@ def remove_contact(my_dict):
     namn = input("Ange namn på kontakten du vill ta bort: ")
     if namn in my_dict:
         del my_dict[namn] #Om namnet finns i my_dict listan, så raderas den
+        spara_kontakter(my_dict)  #Sparar ändringen till CSV-fil
         print(f"Kontakt {namn} har tagits bort!")
     else:
         print("Kontakten finns inte.") 
@@ -58,7 +85,7 @@ def show_all_contacts(my_dict):
 
 #Huvudprogrammet
 def main_program():
-    my_dict = {} #Använder sig av avbildningstabellen
+    my_dict = ladda_kontakter()  #Laddar befintliga kontakter från CSV-fil
     while True:
         menu() #Använder sig av alternativen i menu() funktionen
         val = input("Välj ett alternativ: ")
