@@ -16,9 +16,9 @@ def load_contacts():
         with open(FILENAME, 'r', encoding='utf-8') as file:
             reader = csv.reader(file)
             for row in reader:
-                if len(row) == 2:
+                if len(row) >= 2:  #Minst namn och telefon
                     contact = Contact.from_tuple(row)
-                    contacts[contact.name] = contact
+                    contacts[contact.name.lower()] = contact  #Lagrar med lowercase för sökning
     return contacts
 
 def save_contacts(contacts):
