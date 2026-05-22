@@ -45,16 +45,54 @@ def validate_birth_date(birth_date):
     except ValueError:
         return False
 
+def select_contact_by_name(contacts, name):
+    #Hjälpfunktion: Visa alla kontakter med ett visst namn och låt användaren välja
+    matching = [c for c in contacts.values() if c.name.lower() == name.lower()]
+    
+    if not matching:
+        return None
+    
+    if len(matching) == 1:
+        return matching[0]
+    
+    #Flera kontakter med samma namn
+    print(f"\n⚠️ Det finns {len(matching)} kontakter med namnet '{name}':")
+    for i, contact in enumerate(matching, 1):
+        print(f"  {i}. {contact.basic_info()}")
+    
+    while True:
+        try:
+            val = input("Välj vilken kontakt du menar (ange nummer): ")
+            if not val:
+                return None
+            idx = int(val) - 1
+            if 0 <= idx < len(matching):
+                return matching[idx]
+            else:
+                print("Ogiltigt val, försök igen.")
+        except ValueError:
+            print("Ange ett giltigt nummer!")
+        except KeyboardInterrupt:
+            return None
+
+def get_contact_by_id(contacts):
+    #Hjälpfunktion: Hämta kontakt via ID
+    try:
+        contact_id = int(input("Ange kontaktens ID: "))
+        if contact_id in contacts:
+            return contacts[contact_id]
+        else:
+            print(f"❌ Ingen kontakt med ID {contact_id} hittades.")
+            return None
+    except ValueError:
+        print("❌ Ogiltigt ID! Ange ett nummer.")
+        return None
+
 def add_contact(contacts):
     #Funktion för att lägga till nya kontakter med alla fält
     name = input("Ange namn: ").strip()
     if not name:
         print("Namn kan inte vara tomt!")
-        return
-    
-    #Kontrollera om namnet redan finns (case-insensitive)
-    if name.lower() in contacts:
-        print("Kontakten finns redan.") #Om namnet finns redan så läggs den inte till.
         return
     
     #Telefonnummer (obligatoriskt)
@@ -91,9 +129,10 @@ def add_contact(contacts):
     job_title = input("Ange jobbtitel (valfritt, tryck Enter för att hoppa över): ").strip()
     notes = input("Ange anteckningar (valfritt, tryck Enter för att hoppa över): ").strip()
     
-    contacts[name.lower()] = Contact(name, phone_number, email, address, birth_date, job_title, notes)
+    new_contact = Contact(name, phone_number, email, address, birth_date, job_title, notes)
+    contacts[new_contact.contact_id] = new_contact
     save_contacts(contacts)
-    print(f"\n✅ Kontakt {name} har lagts till!")
+    print(f"\n✅ Kontakt {name} har lagts till med ID {new_contact.contact_id}!")
 
 def search_contact(contacts):
     #Funktion för att söka efter kontakter (delsträngssökning)
@@ -107,211 +146,229 @@ def search_contact(contacts):
         if search_term in contact.name.lower():
             found.append(contact)
     
-    if found: #Om namnet finns i telefonboken så skriver den ut telefonnummret
+    if found:
         print(f"\n🔍 Hittade {len(found)} kontakt(er):")
-        for i, contact in enumerate(found, 1):
-            print(f"{i}. {contact.basic_info()}")
+        for contact in found:
+            print(f"  {contact.basic_info()}")
             
         #Fråga om man vill se mer detaljer
         visa_detaljer = input("\nVill du se fullständig information för någon kontakt? (j/n): ").lower()
         if visa_detaljer == 'j':
-            try:
-                val = int(input("Ange numret på kontakten: ")) - 1
-                if 0 <= val < len(found):
-                    print(found[val])
-                else:
-                    print("Ogiltigt val!")
-            except ValueError:
-                print("Ange ett giltigt nummer!")
+            selected = get_contact_by_id(contacts)
+            if selected:
+                print(selected)
     else:
-        print("❌ Kontakten finns inte.")
+        print("❌ Ingen kontakt hittades.")
 
 def update_phone_number(contacts):
     #Funktion för att uppdatera nummret hos kontakter
     name = input("Ange namn på kontakten du vill uppdatera: ").strip()
-    if name.lower() in contacts: #Om namnet finns i telefonboken kan du uppdatera nummret
-        contact = contacts[name.lower()]
-        print(f"Nuvarande telefonnummer för {contact.name}: {contact.phone_number}")
-        
-        while True:
-            new_number = input("Ange nytt telefonnummer: ").strip()
-            if not new_number:
-                print("Telefonnummer kan inte vara tomt!")
-                continue
-            if not validate_phone_number(new_number):
-                print("Fel: Telefonnumret får bara innehålla siffror, +, mellanslag och bindestreck.")
-                continue
-            break
-        
-        contact.phone_number = new_number
-        save_contacts(contacts)
-        print(f"✅ Telefonnumret för {contact.name} har uppdaterats!")
-    else:
+    if not name:
+        print("Ange ett namn!")
+        return
+    
+    contact = select_contact_by_name(contacts, name)
+    if not contact:
         print("❌ Kontakten finns inte.")
+        return
+    
+    print(f"Nuvarande telefonnummer för {contact.name}: {contact.phone_number}")
+    
+    while True:
+        new_number = input("Ange nytt telefonnummer: ").strip()
+        if not new_number:
+            print("Telefonnummer kan inte vara tomt!")
+            continue
+        if not validate_phone_number(new_number):
+            print("Fel: Telefonnumret får bara innehålla siffror, +, mellanslag och bindestreck.")
+            continue
+        break
+    
+    contact.phone_number = new_number
+    save_contacts(contacts)
+    print(f"✅ Telefonnumret för {contact.name} (ID {contact.contact_id}) har uppdaterats!")
 
 def update_email_or_address(contacts):
     #Funktion för att uppdatera email eller adress
     name = input("Ange namn på kontakten du vill uppdatera: ").strip()
-    if name.lower() in contacts:
-        contact = contacts[name.lower()]
-        print(f"\n📋 Nuvarande information för {contact.name}:")
-        print(f"Email: {contact.email if contact.email else '(inte angivet)'}")
-        print(f"Adress: {contact.address if contact.address else '(inte angivet)'}")
-        
-        print("\nVad vill du uppdatera?")
-        print("1. Email")
-        print("2. Adress")
-        print("3. Båda")
-        choice = input("Välj alternativ: ")
-        
-        if choice == "1":
-            while True:
-                new_email = input("Ange ny email (tryck Enter för att ta bort): ").strip()
-                if not validate_email(new_email):
-                    print("Fel: Ogiltig email-format.")
-                    continue
-                break
-            contact.email = new_email
-            print("✅ Email har uppdaterats!")
-        elif choice == "2":
-            new_address = input("Ange ny adress (tryck Enter för att ta bort): ").strip()
-            contact.address = new_address
-            print("✅ Adress har uppdaterats!")
-        elif choice == "3":
-            while True:
-                new_email = input("Ange ny email: ").strip()
-                if not validate_email(new_email):
-                    print("Fel: Ogiltig email-format.")
-                    continue
-                break
-            new_address = input("Ange ny adress: ").strip()
-            contact.email = new_email
-            contact.address = new_address
-            print("✅ Email och adress har uppdaterats!")
-        else:
-            print("Ogiltigt val!")
-            return
-        
-        save_contacts(contacts)
-    else:
+    if not name:
+        print("Ange ett namn!")
+        return
+    
+    contact = select_contact_by_name(contacts, name)
+    if not contact:
         print("❌ Kontakten finns inte.")
+        return
+    
+    print(f"\n📋 Nuvarande information för {contact.name} (ID {contact.contact_id}):")
+    print(f"Email: {contact.email if contact.email else '(inte angivet)'}")
+    print(f"Adress: {contact.address if contact.address else '(inte angivet)'}")
+    
+    print("\nVad vill du uppdatera?")
+    print("1. Email")
+    print("2. Adress")
+    print("3. Båda")
+    choice = input("Välj alternativ: ")
+    
+    if choice == "1":
+        while True:
+            new_email = input("Ange ny email (tryck Enter för att ta bort): ").strip()
+            if not validate_email(new_email):
+                print("Fel: Ogiltig email-format.")
+                continue
+            break
+        contact.email = new_email
+        print("✅ Email har uppdaterats!")
+    elif choice == "2":
+        new_address = input("Ange ny adress (tryck Enter för att ta bort): ").strip()
+        contact.address = new_address
+        print("✅ Adress har uppdaterats!")
+    elif choice == "3":
+        while True:
+            new_email = input("Ange ny email: ").strip()
+            if not validate_email(new_email):
+                print("Fel: Ogiltig email-format.")
+                continue
+            break
+        new_address = input("Ange ny adress: ").strip()
+        contact.email = new_email
+        contact.address = new_address
+        print("✅ Email och adress har uppdaterats!")
+    else:
+        print("Ogiltigt val!")
+        return
+    
+    save_contacts(contacts)
 
 def update_birth_date_or_job_title(contacts):
-    #Ny funktion för att uppdatera födelsedatum eller jobbtitel
+    #Funktion för att uppdatera födelsedatum eller jobbtitel
     name = input("Ange namn på kontakten du vill uppdatera: ").strip()
-    if name.lower() in contacts:
-        contact = contacts[name.lower()]
-        print(f"\n📋 Nuvarande information för {contact.name}:")
-        print(f"Födelsedatum: {contact.birth_date if contact.birth_date else '(inte angivet)'}")
-        print(f"Jobbtitel: {contact.job_title if contact.job_title else '(inte angivet)'}")
-        
-        print("\nVad vill du uppdatera?")
-        print("1. Födelsedatum")
-        print("2. Jobbtitel")
-        print("3. Båda")
-        choice = input("Välj alternativ: ")
-        
-        if choice == "1":
-            while True:
-                new_birth_date = input("Ange nytt födelsedatum (YYYY-MM-DD, tryck Enter för att ta bort): ").strip()
-                if not new_birth_date:
-                    break
-                if not validate_birth_date(new_birth_date):
-                    print("Fel: Ogiltigt datumformat. Använd YYYY-MM-DD")
-                    continue
-                break
-            contact.birth_date = new_birth_date
-            print("✅ Födelsedatum har uppdaterats!")
-        elif choice == "2":
-            new_job_title = input("Ange ny jobbtitel (tryck Enter för att ta bort): ").strip()
-            contact.job_title = new_job_title
-            print("✅ Jobbtitel har uppdaterats!")
-        elif choice == "3":
-            while True:
-                new_birth_date = input("Ange nytt födelsedatum (YYYY-MM-DD): ").strip()
-                if not validate_birth_date(new_birth_date):
-                    print("Fel: Ogiltigt datumformat. Använd YYYY-MM-DD")
-                    continue
-                break
-            new_job_title = input("Ange ny jobbtitel: ").strip()
-            contact.birth_date = new_birth_date
-            contact.job_title = new_job_title
-            print("✅ Födelsedatum och jobbtitel har uppdaterats!")
-        else:
-            print("Ogiltigt val!")
-            return
-        
-        save_contacts(contacts)
-    else:
+    if not name:
+        print("Ange ett namn!")
+        return
+    
+    contact = select_contact_by_name(contacts, name)
+    if not contact:
         print("❌ Kontakten finns inte.")
+        return
+    
+    print(f"\n📋 Nuvarande information för {contact.name} (ID {contact.contact_id}):")
+    print(f"Födelsedatum: {contact.birth_date if contact.birth_date else '(inte angivet)'}")
+    print(f"Jobbtitel: {contact.job_title if contact.job_title else '(inte angivet)'}")
+    
+    print("\nVad vill du uppdatera?")
+    print("1. Födelsedatum")
+    print("2. Jobbtitel")
+    print("3. Båda")
+    choice = input("Välj alternativ: ")
+    
+    if choice == "1":
+        while True:
+            new_birth_date = input("Ange nytt födelsedatum (YYYY-MM-DD, tryck Enter för att ta bort): ").strip()
+            if not new_birth_date:
+                break
+            if not validate_birth_date(new_birth_date):
+                print("Fel: Ogiltigt datumformat. Använd YYYY-MM-DD")
+                continue
+            break
+        contact.birth_date = new_birth_date
+        print("✅ Födelsedatum har uppdaterats!")
+    elif choice == "2":
+        new_job_title = input("Ange ny jobbtitel (tryck Enter för att ta bort): ").strip()
+        contact.job_title = new_job_title
+        print("✅ Jobbtitel har uppdaterats!")
+    elif choice == "3":
+        while True:
+            new_birth_date = input("Ange nytt födelsedatum (YYYY-MM-DD): ").strip()
+            if not validate_birth_date(new_birth_date):
+                print("Fel: Ogiltigt datumformat. Använd YYYY-MM-DD")
+                continue
+            break
+        new_job_title = input("Ange ny jobbtitel: ").strip()
+        contact.birth_date = new_birth_date
+        contact.job_title = new_job_title
+        print("✅ Födelsedatum och jobbtitel har uppdaterats!")
+    else:
+        print("Ogiltigt val!")
+        return
+    
+    save_contacts(contacts)
 
 def update_notes(contacts):
-    #Ny funktion för att lägga till/redigera anteckningar
+    #Funktion för att lägga till/redigera anteckningar
     name = input("Ange namn på kontakten du vill redigera anteckningar för: ").strip()
-    if name.lower() in contacts:
-        contact = contacts[name.lower()]
-        print(f"\n📝 Nuvarande anteckningar för {contact.name}:")
-        print(contact.notes if contact.notes else "(inga anteckningar)")
-        
-        new_notes = input("\nAnge nya anteckningar (tryck Enter för att ta bort alla): ").strip()
-        contact.notes = new_notes
-        save_contacts(contacts)
-        print("✅ Anteckningar har uppdaterats!")
-    else:
+    if not name:
+        print("Ange ett namn!")
+        return
+    
+    contact = select_contact_by_name(contacts, name)
+    if not contact:
         print("❌ Kontakten finns inte.")
+        return
+    
+    print(f"\n📝 Nuvarande anteckningar för {contact.name} (ID {contact.contact_id}):")
+    print(contact.notes if contact.notes else "(inga anteckningar)")
+    
+    new_notes = input("\nAnge nya anteckningar (tryck Enter för att ta bort alla): ").strip()
+    contact.notes = new_notes
+    save_contacts(contacts)
+    print("✅ Anteckningar har uppdaterats!")
 
 def change_contact_name(contacts):
     #Funktion för att ändra namn på en kontakt
-    old_name = input("Ange nuvarande namn på kontakten: ").strip()
-    if old_name.lower() in contacts:
-        contact = contacts[old_name.lower()]
-        print(f"Nuvarande namn: {contact.name}")
-        new_name = input("Ange nytt namn: ").strip()
-        
-        if not new_name:
-            print("Namn kan inte vara tomt!")
-            return
-            
-        if new_name.lower() in contacts and new_name.lower() != old_name.lower():
-            print("Det finns redan en kontakt med det namnet!")
-            return
-        
-        #Ta bort gammal och lägg till ny med nytt namn
-        del contacts[old_name.lower()]
-        contact.name = new_name
-        contacts[new_name.lower()] = contact
-        save_contacts(contacts)
-        print(f"✅ Namnet har ändrats från {old_name} till {new_name}!")
-    else:
+    name = input("Ange nuvarande namn på kontakten: ").strip()
+    if not name:
+        print("Ange ett namn!")
+        return
+    
+    contact = select_contact_by_name(contacts, name)
+    if not contact:
         print("❌ Kontakten finns inte.")
+        return
+    
+    print(f"Nuvarande namn: {contact.name} (ID {contact.contact_id})")
+    new_name = input("Ange nytt namn: ").strip()
+    
+    if not new_name:
+        print("Namn kan inte vara tomt!")
+        return
+    
+    contact.name = new_name
+    save_contacts(contacts)
+    print(f"✅ Namnet har ändrats till {new_name} (ID {contact.contact_id})!")
 
 def remove_contact(contacts):
     #Funktion för att ta bort kontakter
     name = input("Ange namn på kontakten du vill ta bort: ").strip()
-    if name.lower() in contacts:
-        contact = contacts[name.lower()]
-        print(f"\n📋 Kontaktinformation för {contact.name}:")
-        print(contact.basic_info())
-        confirm = input("Är du säker på att du vill ta bort denna kontakt? (j/n): ").lower()
-        
-        if confirm == 'j':
-            del contacts[name.lower()] #Om namnet finns i contacts listan, så raderas den
-            save_contacts(contacts)
-            print(f"✅ Kontakt {contact.name} har tagits bort!")
-        else:
-            print("Borttagning avbröts.")
-    else:
+    if not name:
+        print("Ange ett namn!")
+        return
+    
+    contact = select_contact_by_name(contacts, name)
+    if not contact:
         print("❌ Kontakten finns inte.")
+        return
+    
+    print(f"\n📋 Kontaktinformation för {contact.name} (ID {contact.contact_id}):")
+    print(contact)
+    confirm = input("Är du säker på att du vill ta bort denna kontakt? (j/n): ").lower()
+    
+    if confirm == 'j':
+        del contacts[contact.contact_id]
+        save_contacts(contacts)
+        print(f"✅ Kontakt {contact.name} (ID {contact.contact_id}) har tagits bort!")
+    else:
+        print("Borttagning avbröts.")
 
 def show_all_contacts(contacts):
-    #Funktion för att visa alla kontakter (sorterade)
-    if contacts: #Skriver ut alla kontakter
+    #Funktion för att visa alla kontakter (sorterade efter namn)
+    if contacts:
         print("\n" + "="*40)
         print("📒 ALLA KONTAKTER")
         print("="*40)
         #Sortera efter namn
         sorted_contacts = sorted(contacts.values(), key=lambda x: x.name.lower())
-        for i, contact in enumerate(sorted_contacts, 1):
+        for contact in sorted_contacts:
             #Visa om kontakt har födelsedag snart (inom 30 dagar)
             age_info = ""
             if contact.birth_date:
@@ -327,18 +384,16 @@ def show_all_contacts(contacts):
                         age_info = " 🎂"
                 except:
                     pass
-            print(f"{i}. {contact.basic_info()}{age_info}")
+            print(f"  {contact.basic_info()}{age_info}")
         print("="*40)
         print(f"📊 Totalt antal kontakter: {len(contacts)}")
         
         #Fråga om man vill se detaljer för någon kontakt
         show_details = input("\nVill du se detaljer för en kontakt? (ja/nej): ").lower()
         if show_details in ['ja', 'j']:
-            name = input("Ange namn på kontakten: ").strip()
-            if name.lower() in contacts:
-                print(contacts[name.lower()])
-            else:
-                print("❌ Kontakten finns inte.")
+            selected = get_contact_by_id(contacts)
+            if selected:
+                print(selected)
     else:
         print("📭 Telefonboken är tom.")
 
