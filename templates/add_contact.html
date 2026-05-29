@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Lägg till kontakt{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>➕ Lägg till ny kontakt</h1>
+    
+    <form method="POST" action="{{ url_for('add_contact') }}">
+        <div class="form-group">
+            <label for="name">Namn *</label>
+            <input type="text" id="name" name="name" required placeholder="Ange fullständigt namn">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone_number">Telefonnummer *</label>
+            <input type="tel" id="phone_number" name="phone_number" required placeholder="0701234567">
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="namn@example.com">
+        </div>
+        
+        <div class="form-group">
+            <label for="address">Adress</label>
+            <input type="text" id="address" name="address" placeholder="Gatuadress, postnummer, ort">
+        </div>
+        
+        <div class="form-group">
+            <label for="birth_date">Födelsedatum</label>
+            <input type="date" id="birth_date" name="birth_date">
+            <small>Format: ÅÅÅÅ-MM-DD</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="job_title">Jobbtitel</label>
+            <input type="text" id="job_title" name="job_title" placeholder="T.ex. Utvecklare, Lärare, etc.">
+        </div>
+        
+        <div class="form-group">
+            <label for="notes">Anteckningar</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Eventuella anteckningar om kontakten..."></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">💾 Spara kontakt</button>
+            <a href="{{ url_for('index') }}" class="btn-secondary">Avbryt</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

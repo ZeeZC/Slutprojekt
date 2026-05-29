@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Hem - Telefonbok{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>📒 Mina kontakter</h1>
+</div>
+
+<div class="controls-bar">
+    <div class="stats-bar">
+        <span>📊 Totalt: {{ contacts|length }} kontakter</span>
+    </div>
+    
+    <div class="sort-bar">
+        <label for="sortSelect">📋 Sortera efter:</label>
+        <select id="sortSelect" onchange="sortContacts()">
+            <option value="name_asc">Namn (A-Ö)</option>
+            <option value="name_desc">Namn (Ö-A)</option>
+            <option value="id_asc">ID (lägst först)</option>
+            <option value="id_desc">ID (högst först)</option>
+            <option value="job_asc">Jobbtitel (A-Ö)</option>
+            <option value="birthday_asc">Födelsedag (närmast först)</option>
+        </select>
+    </div>
+</div>
+
+<div class="contacts-list" id="contactsList">
+    {% if contacts %}
+        {% set sorted_contacts = contacts|sort(attribute='name') %}
+        {% set current_letter = '' %}
+        
+        {% for contact in sorted_contacts %}
+            {% set first_letter = contact.name[0]|upper %}
+            {% if first_letter != current_letter %}
+                {% if current_letter != '' %}
+                        </div>
+                    </div>
+                {% endif %}
+                {% set current_letter = first_letter %}
+                <div class="letter-section" data-letter="{{ first_letter }}">
+                    <div class="letter-header">{{ first_letter }}</div>
+                    <div class="letter-contacts">
+            {% endif %}
+            
+            <div class="list-item" data-name="{{ contact.name.lower() }}" 
+                 data-id="{{ contact.contact_id }}"
+                 data-job="{{ contact.job_title|lower }}"
+                 data-birth="{{ contact.birth_date }}">
+                <div class="list-item-content">
+                    <div class="list-item-left">
+                        <div class="list-item-id">#{{ contact.contact_id }}</div>
+                        <div class="list-item-name">{{ contact.name }}</div>
+                        <div class="list-item-phone">
+                            📞 {{ contact.phone_number }}
+                            <button class="btn-copy" onclick="copyToClipboard('{{ contact.phone_number }}', event)" title="Kopiera telefonnummer">
+                                📋
+                            </button>
+                        </div>
+                        {% if contact.email %}
+                            <div class="list-item-email">✉️ {{ contact.email }}</div>
+                        {% endif %}
+                        {% if contact.address %}
+                            <div class="list-item-address">🏠 {{ contact.address }}</div>
+                        {% endif %}
+                        {% if contact.job_title %}
+                            <div class="list-item-job">💼 {{ contact.job_title }}</div>
+                        {% endif %}
+                        {% if contact.birth_date %}
+                            <div class="list-item-birth">🎂 {{ contact.birth_date }}</div>
+                        {% endif %}
+                        {% if contact.notes %}
+                            <div class="list-item-notes">📝 {{ contact.notes[:100] }}{% if contact.notes|length > 100 %}...{% endif %}</div>
+                        {% endif %}
+                    </div>
+                    <div class="list-item-right">
+                        <a href="{{ url_for('edit_contact', contact_id=contact.contact_id) }}" class="btn-edit-sm">✏️ Redigera</a>
+                        <a href="{{ url_for('delete_contact', contact_id=contact.contact_id) }}" class="btn-delete-sm" onclick="return confirm('Är du säker på att du vill ta bort {{ contact.name }}?')">🗑️ Ta bort</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        
+        {% if current_letter != '' %}
+                    </div>
+                </div>
+        {% endif %}
+        
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h2>Inga kontakter ännu</h2>
+            <p>Klicka på "Lägg till kontakt" för att börja bygga din telefonbok!</p>
+            <a href="{{ url_for('add_contact') }}" class="btn-primary">➕ Lägg till första kontakten</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Toast-meddelande för kopiering -->
+<div id="toast" class="toast">📋 Telefonnummer kopierat!</div>
+
+<script>
+// Kopiera till clipboard
+function copyToClipboard(text, event) {
+    event.stopPropagation();
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast();
+        }).catch(function(err) {
+            fallbackCopy(text);
+        });
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    let textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    showToast();
+}
+
+function showToast() {
+    let toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(function() {
+        toast.classList.remove('show');
+    }, 2000);
+}
+
+// Bekräfta borttagning
+function confirmDelete(contactName) {
+    return confirm('Är du säker på att du vill ta bort ' + contactName + '?');
+}
+
+// Sorteringsfunktion
+function sortContacts() {
+    let sortValue = document.getElementById('sortSelect').value;
+    let container = document.getElementById('contactsList');
+    let letterSections = Array.from(container.getElementsByClassName('letter-section'));
+    let allItems = [];
+    
+    for (let section of letterSections) {
+        let items = Array.from(section.getElementsByClassName('list-item'));
+        allItems.push(...items);
+        section.remove();
+    }
+    
+    switch(sortValue) {
+        case 'name_asc':
+            allItems.sort((a, b) => {
+                let nameA = a.getAttribute('data-name');
+                let nameB = b.getAttribute('data-name');
+                return nameA.localeCompare(nameB, 'sv');
+            });
+            break;
+        case 'name_desc':
+            allItems.sort((a, b) => {
+                let nameA = a.getAttribute('data-name');
+                let nameB = b.getAttribute('data-name');
+                return nameB.localeCompare(nameA, 'sv');
+            });
+            break;
+        case 'id_asc':
+            allItems.sort((a, b) => {
+                let idA = parseInt(a.getAttribute('data-id'));
+                let idB = parseInt(b.getAttribute('data-id'));
+                return idA - idB;
+            });
+            break;
+        case 'id_desc':
+            allItems.sort((a, b) => {
+                let idA = parseInt(a.getAttribute('data-id'));
+                let idB = parseInt(b.getAttribute('data-id'));
+                return idB - idA;
+            });
+            break;
+        case 'job_asc':
+            allItems.sort((a, b) => {
+                let jobA = a.getAttribute('data-job') || '';
+                let jobB = b.getAttribute('data-job') || '';
+                let compare = jobA.localeCompare(jobB, 'sv');
+                if (compare === 0) {
+                    let nameA = a.getAttribute('data-name');
+                    let nameB = b.getAttribute('data-name');
+                    return nameA.localeCompare(nameB, 'sv');
+                }
+                return compare;
+            });
+            break;
+        case 'birthday_asc':
+            allItems.sort((a, b) => {
+                let birthA = a.getAttribute('data-birth') || '9999-12-31';
+                let birthB = b.getAttribute('data-birth') || '9999-12-31';
+                let today = new Date();
+                let todayStr = `${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+                let monthDayA = birthA.substring(5);
+                let monthDayB = birthB.substring(5);
+                let aPassed = monthDayA < todayStr;
+                let bPassed = monthDayB < todayStr;
+                if (aPassed !== bPassed) {
+                    return aPassed ? 1 : -1;
+                }
+                let compare = monthDayA.localeCompare(monthDayB);
+                if (compare === 0) {
+                    let nameA = a.getAttribute('data-name');
+                    let nameB = b.getAttribute('data-name');
+                    return nameA.localeCompare(nameB, 'sv');
+                }
+                return compare;
+            });
+            break;
+    }
+    
+    let newContainer = document.createElement('div');
+    newContainer.id = 'contactsList';
+    newContainer.className = 'contacts-list';
+    
+    let currentLetter = '';
+    let currentSection = null;
+    let currentLetterContainer = null;
+    
+    for (let item of allItems) {
+        let name = item.getAttribute('data-name');
+        let firstLetter = name ? name.charAt(0).toUpperCase() : '#';
+        
+        if (firstLetter !== currentLetter) {
+            if (currentSection && currentLetterContainer) {
+                currentSection.appendChild(currentLetterContainer);
+                newContainer.appendChild(currentSection);
+            }
+            currentLetter = firstLetter;
+            currentSection = document.createElement('div');
+            currentSection.className = 'letter-section';
+            currentSection.setAttribute('data-letter', currentLetter);
+            let header = document.createElement('div');
+            header.className = 'letter-header';
+            header.textContent = currentLetter;
+            currentSection.appendChild(header);
+            currentLetterContainer = document.createElement('div');
+            currentLetterContainer.className = 'letter-contacts';
+        }
+        currentLetterContainer.appendChild(item);
+    }
+    
+    if (currentSection && currentLetterContainer) {
+        currentSection.appendChild(currentLetterContainer);
+        newContainer.appendChild(currentSection);
+    }
+    
+    container.parentNode.replaceChild(newContainer, container);
+    document.getElementById('contactsList').id = 'contactsList';
+}
+
+// Ladda sparad sortering från localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    let savedSort = localStorage.getItem('phonebook_sort');
+    if (savedSort) {
+        let sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.value = savedSort;
+            sortContacts();
+        }
+    }
+    
+    let sortSelect = document.getElementById('sortSelect');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            localStorage.setItem('phonebook_sort', this.value);
+        });
+    }
+});
+</script>
+{% endblock %}
